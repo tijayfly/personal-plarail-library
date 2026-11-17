@@ -61,6 +61,17 @@
     if (el.dataset.fallback && el.src !== el.dataset.fallback) { el.src = el.dataset.fallback; delete el.dataset.fallback; return; }
     if (!el.dataset.dead) { el.dataset.dead = 1; el.replaceWith(Object.assign(document.createElement('div'), { className: 'noimg', innerHTML: ICON.camera + 'Photo unavailable' })); }
   }, true);
+  // refresh values and say plainly if eBay failed
+  async function refreshValues(ids) {
+    const t0 = Date.now() - 1000;
+    DB = await API.refreshPrices(ids);
+    const scope = DB.items.filter((i) => !ids || ids.includes(i.id));
+    const failed = scope.filter((i) => i.current && i.current.error && Date.parse(i.current.errorAt || 0) >= t0);
+    if (!failed.length) toast(ids && ids.length === 1 ? 'Value refreshed' : 'Values refreshed');
+    else toast((ids && ids.length === 1 ? 'Couldn’t refresh: ' : `Couldn’t refresh ${failed.length} of ${scope.length} items: `) + failed[0].current.error, 7000);
+  }
+  const ebayFails = (items) => items.filter((i) => i.current && i.current.error).length;
+  const failNote = (n) => `<span class="price-err">⚠ eBay failed for ${n} train${n > 1 ? 's' : ''}</span>`;
   function toast(msg, ms = 2600) {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
     setTimeout(() => t.remove(), ms);
@@ -148,7 +159,7 @@
     return `<section class="stats">
       <div class="stat"><div class="stat-label">Trains</div><div class="stat-value">${n}</div><div class="stat-sub">${gifts} gift${gifts === 1 ? '' : 's'}${acc ? ` · +${acc} track / scenery` : ''}</div></div>
       <div class="stat"><div class="stat-label">Total paid</div><div class="stat-value">${gbp(paid)}</div><div class="stat-sub">${bought ? gbp(boughtPaid / bought, 2) + ' per bought train' : 'gifts counted as £0'}</div></div>
-      <div class="stat"><div class="stat-label">Current value</div><div class="stat-value">${gbp(val)}</div><div class="stat-sub">${valued.length}/${items.length} valued</div></div>
+      <div class="stat"><div class="stat-label">Current value</div><div class="stat-value">${gbp(val)}</div><div class="stat-sub">${ebayFails(items) ? failNote(ebayFails(items)) : `${valued.length}/${items.length} valued`}</div></div>
       <div class="stat"><div class="stat-label">Profit / loss</div><div class="stat-value ${cls(gain)}">${signed(gain)}</div><div class="stat-sub ${cls(gain)}">${paid ? pct((gain / paid) * 100) + ' on cost' : ''}</div></div>
     </section>`;
   }
@@ -224,7 +235,7 @@
     else if (!VIEW) html += `<section class="stats" style="grid-template-columns:repeat(3,1fr)">
         <div class="stat"><div class="stat-label">Wanted</div><div class="stat-value">${all.length}</div><div class="stat-sub">on the list</div></div>
         <div class="stat"><div class="stat-label">Target spend</div><div class="stat-value">${gbp(all.reduce((s, i) => s + (i.targetPrice || 0), 0))}</div><div class="stat-sub">from your notes</div></div>
-        <div class="stat"><div class="stat-label">Market now</div><div class="stat-value">${gbp(all.reduce((s, i) => s + (value(i) || 0), 0))}</div><div class="stat-sub">${all.some((i) => i.current && i.current.dummy) ? 'dummy data' : 'eBay UK'}</div></div></section>`;
+        <div class="stat"><div class="stat-label">Market now</div><div class="stat-value">${gbp(all.reduce((s, i) => s + (value(i) || 0), 0))}</div><div class="stat-sub">${ebayFails(all) ? failNote(ebayFails(all)) : DB.settings.priceProvider === 'ebay' ? 'eBay UK' : 'dummy data'}</div></div></section>`;
     html += toolbar(counts, list, items.length);
     if (!items.length) html += `<div class="empty">Nothing matches.${!VIEW && list === 'wishlist' ? ' Add one with “+ Add item” and choose Wishlist.' : ''}</div>`;
     else html += state.view === 'table' ? table(items, list) : `<div class="grid">${items.map(card).join('')}</div>`;
@@ -276,7 +287,7 @@
     let money = '';
     if (!VIEW) {
       const c = it.current || {};
-      const curLine = `<div><div class="k">Current value</div><div class="v">${gbp(value(it), 2)}</div><div class="s">${esc(c.source || 'not valued')}${c.samples ? ' · ' + c.samples + ' listings' : ''}</div></div>`;
+      const curLine = `<div><div class="k">Current value</div><div class="v">${gbp(value(it), 2)}</div><div class="s">${esc(c.source || 'not valued')}${c.samples ? ' · ' + c.samples + ' listings' : ''}</div>${c.error ? `<div class="s price-err">⚠ Last refresh failed: ${esc(c.error)}</div>` : ''}</div>`;
       if (it.list === 'wishlist') {
         money = `<div class="money"><div><div class="k">Target price</div><div class="v">${gbp(it.targetPrice, 2)}</div><div class="s">from your list</div></div>${curLine}</div>`;
       } else {
@@ -318,7 +329,7 @@
     if (VIEW) return;
     document.getElementById('edit').onclick = () => editForm(it);
     document.getElementById('photo').onclick = () => photoPicker(it);
-    document.getElementById('reprice').onclick = async () => { DB = await API.refreshPrices([it.id]); toast('Value refreshed'); renderItem(id); };
+    document.getElementById('reprice').onclick = async (e) => { e.target.disabled = true; e.target.textContent = 'Refreshing…'; await refreshValues([it.id]); renderItem(id); };
     document.getElementById('del').onclick = async () => { if (await API.deleteItem(it.id)) { DB = await API.getDB(); location.hash = backHref; } };
     const g = document.getElementById('gotit');
     if (g) g.onclick = () => gotIt(it);
@@ -546,8 +557,9 @@
           <label class="span-3">eBay App ID (Client ID)<input class="input" name="ebayAppId" value="${esc(s.ebayAppId || '')}" autocomplete="off"></label>
           <label class="span-3">eBay Cert ID (Client Secret)<input class="input" name="ebayCertId" type="password" value="${esc(s.ebayCertId || '')}" autocomplete="off"></label>
         </div>
-        <p class="hint" style="margin-top:10px">Keys are stored only in your local data file.</p>
-        <div class="row"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="rp">Refresh all values</button></div>
+        <p class="hint" style="margin-top:10px">Use your <b>Production</b> keys. They're stored only in your local data file.</p>
+        <p class="hint" id="ebaystatus"></p>
+        <div class="row"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="ebaytest">Test eBay keys</button><button class="btn" type="button" id="rp">Refresh all values</button></div>
       </form>
       <form class="panel" id="gf2"><h2>View-only page</h2><p class="hint">Exports a static web page of your collection with <b>all price data removed</b> (paid, current values, P&amp;L, wishlist targets, where you bought it).</p>
         <div class="row"><button class="btn red" type="button" id="ex">${s.githubPublish ? 'Export &amp; publish' : 'Export view-only snapshot'}</button><button class="btn" type="button" id="exo">Open folder</button></div>
@@ -578,7 +590,13 @@
       if (ns.priceProvider === 'ebay' && (!ns.ebayAppId || !ns.ebayCertId)) { toast('Add both eBay keys first — staying on dummy data'); ns.priceProvider = 'dummy'; }
       DB.settings = await API.saveSettings(ns); toast('Settings saved'); renderTabs('settings');
     };
-    document.getElementById('rp').onclick = async (e) => { e.target.disabled = true; e.target.textContent = 'Refreshing…'; DB = await API.refreshPrices(); toast('Values refreshed'); renderSettings(); };
+    document.getElementById('rp').onclick = async (e) => { e.target.disabled = true; e.target.textContent = 'Refreshing…'; await refreshValues(); renderSettings(); };
+    document.getElementById('ebaytest').onclick = async (e) => {
+      const f = new FormData(document.getElementById('sf')), st = document.getElementById('ebaystatus');
+      e.target.disabled = true; st.className = 'hint'; st.textContent = 'Testing with eBay…';
+      const r = await API.testEbay(f.get('ebayAppId') || '', f.get('ebayCertId') || '');
+      e.target.disabled = false; st.className = 'hint ' + (r.ok ? 'gain' : 'price-err'); st.textContent = (r.ok ? '✓ ' : '⚠ ') + r.message;
+    };
     const doExport = async (publish) => {
       const st = document.getElementById('ghstatus'); st.textContent = publish ? 'Exporting and publishing to GitHub…' : 'Exporting…';
       const r = await API.exportViewOnly(publish === undefined ? undefined : { publish });

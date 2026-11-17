@@ -341,3 +341,4 @@ table.list td.num { white-space: nowrap; }
 .bb-window img { height: calc(100% - 16px); padding: 14px 16px 8px; }
 .card-img .rail, .bb-window .rail { z-index: 2; }
 .card-img .rarity, .card-img .pl-pill.on-img { z-index: 3; }
+.price-err { color: var(--loss); }
