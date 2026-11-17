@@ -493,7 +493,7 @@
         <label class="span-1">Line<select name="line">${lineOptions('auto', true)}</select></label>
         <label class="span-1">Price paid (£)<input class="input" name="paid" type="number" step="0.01"></label>
         <label class="span-1">Add to<select name="list"><option value="collection">Collection</option><option value="wishlist">Wishlist (price = target)</option></select></label>
-        <label class="span-3">Bought (where / when)<input class="input" name="boughtAt" placeholder="e.g. Toys R Us Aqua City, Nov 2023" list="bought2"></label>
+        <label class="span-3">Bought (where / when)<input class="input" name="boughtAt" placeholder="e.g. Toys R Us, Nov 2023" list="bought2"></label>
         <label class="span-1 check"><input type="checkbox" name="gift"> Gift</label>
         <datalist id="bought2">${uniq('boughtAt')}</datalist>
       </div><div class="row" style="margin-top:16px"><button class="btn red" type="submit" id="lk">Look up details</button></div></form>
