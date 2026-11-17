@@ -157,7 +157,7 @@
     const lines = M.LINE_ORDER.filter((b) => counts[b]).concat(Object.keys(counts).filter((b) => b !== 'All' && !M.LINES[b]));
     const chips = ['All', ...lines].map((b) =>
       `<button class="chip ${state.line === b ? 'on' : ''}" data-line="${esc(b)}" title="${esc(b === 'All' ? 'Everything' : L(b).label)}">${b === 'All' ? 'All' : badge({ line: b }, true)}<span class="n">${counts[b] || 0}</span></button>`).join('');
-    const sorts = [['line', 'Line & number'], ['number', 'Model number'], ['name', 'Name'], ['operator', 'Operator'], ['series', 'Type / series'], ['cars', 'Number of cars'], ['rarity', 'Rarity'], ['added', 'Date added']];
+    const sorts = [['line', 'Line & number'], ['number', 'Model number'], ['name', 'Name'], ['operator', 'Operator'], ['series', 'Series'], ['cars', 'Number of cars'], ['rarity', 'Rarity'], ['added', 'Date added']];
     if (!VIEW) sorts.push(list === 'wishlist' ? ['paid', 'Target price'] : ['paid', 'Price paid'], ['value', 'Current value']);
     if (!VIEW && list === 'collection') sorts.push(['pl', 'Profit / loss £'], ['plpct', 'Profit / loss %']);
     return `<div class="toolbar">
@@ -196,7 +196,7 @@
   }
 
   function table(items, list) {
-    const cols = [['', null], ['Line', 'line'], ['No.', 'number'], ['Name', 'name'], ['Operator', 'operator'], ['Type', 'series'], ['Cars', 'cars', 1], ['', null], ['Rarity', 'rarity']];
+    const cols = [['', null], ['Line', 'line'], ['No.', 'number'], ['Name', 'name'], ['Operator', 'operator'], ['Series', 'series'], ['Cars', 'cars', 1], ['', null], ['Rarity', 'rarity']];
     if (!VIEW) {
       if (list === 'wishlist') cols.push(['Target', 'paid', 1], ['Current', 'value', 1]);
       else cols.push(['Paid', 'paid', 1], ['Current', 'value', 1], ['P/L', 'pl', 1], ['P/L %', 'plpct', 1]);
@@ -262,7 +262,7 @@
     if (it.number) spec.push(['Model no.', `<span class="model-no" style="font-size:13px;color:var(--ink)">${esc(it.number)}</span>`]);
     spec.push(['Name', esc(it.title)]);
     if (!it.accessory || it.operator) spec.push(['Operator', esc(it.operator || '—')]);
-    if (!it.accessory || it.series) spec.push(['Type / series', esc(it.series ? it.series + (/^\d+$/.test(it.series) ? ' series' : '') : '—')]);
+    if (!it.accessory || it.series) spec.push(['Series', esc(it.series ? it.series + (/^\d+$/.test(it.series) ? ' series' : '') : '—')]);
     if (!it.accessory) spec.push(['Cars', esc(it.cars || '—')], ['Powered', it.powered === false ? 'No (unpowered)' : 'Yes'], ['Light-up', yn(it.lights)]);
     if (it.features) spec.push([it.accessory ? 'Contents' : 'Features', esc(it.features)]);
     spec.push(['Rarity', r.short ? `${rarityTag(it)} &nbsp;${esc(r.label)}` : esc(r.label)]);
@@ -334,7 +334,7 @@
       <label class="span-3">Train name<input class="input" name="title" value="${esc(d.title || '')}" placeholder="e.g. E5 Hayabusa" required></label>
       <label class="span-2">Line<select name="line">${lineOptions(d.line || 'Plarail')}</select></label>
       <label class="span-2">Operator<input class="input" name="operator" value="${esc(d.operator || '')}" placeholder="e.g. JR East" list="ops"></label>
-      <label class="span-1">Type / series<input class="input" name="series" value="${esc(d.series || '')}" placeholder="E5, N700S"></label>
+      <label class="span-1">Series<input class="input" name="series" value="${esc(d.series || '')}" placeholder="E5, N700S"></label>
       <label class="span-1">No. of cars<input class="input" name="cars" type="number" min="1" value="${d.cars ?? ''}"></label>
       <label class="span-1 check"><input type="checkbox" name="powered" ${d.powered !== false ? 'checked' : ''}> Powered</label>
       <label class="span-1 check"><input type="checkbox" name="lights" ${d.lights ? 'checked' : ''}> Light-up</label>
